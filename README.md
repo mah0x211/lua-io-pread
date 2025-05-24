@@ -34,7 +34,7 @@ read nbytes of data from the specified position in the file without modifying th
 
 - `s:string`: read data from the file or `nil`. if a `nbytes` is `0` then return an `nil`.
 - `err:any`: error object if an error occurs.
-- `again:boolean`: `true` if it cannot read data because of end of file, or `pread` sets the `errno` to `EAGAIN` or `EWOULDBLOCK`. 
+- `again:boolean`: `true` if it cannot read data because of end of file, or `pread` sets the `errno` to `EAGAIN`, `EWOULDBLOCK` or `EINTR`.
 
 **Example**
 
