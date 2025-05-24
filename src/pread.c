@@ -65,7 +65,6 @@ static int pcall_pread_lua(lua_State *L)
     }
 #endif
 
-RETRY:
     n = pread(fd, buf, nbyte, offset);
     if (n > 0) {
 #if LUA_VERSION_NUM > 501
@@ -81,16 +80,13 @@ RETRY:
         return 1;
     }
 
-    if (n == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
+    if (n == 0 || errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
         // reached to EOF or try again
         lua_settop(L, 0);
         lua_pushnil(L);
         lua_pushnil(L);
         lua_pushboolean(L, 1);
         return 3;
-    } else if (errno == EINTR) {
-        // retry if interrupted by signal
-        goto RETRY;
     }
 
     // error occurred
