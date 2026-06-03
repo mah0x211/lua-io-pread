@@ -26,6 +26,12 @@ function testcase.pread()
     assert.is_nil(again)
     assert.equal(s, 'lo pread w')
 
+    -- test that return a remaining bytes if number of bytes is greater than remaining bytes
+    s, err, again = pread(f, 0x1FFFFFFFFFFFFF)
+    assert.equal(s, 'lo pread world')
+    assert.is_nil(err)
+    assert.is_nil(again)
+
     -- test that read all bytes from a current position if number of bytes is not passed
     s, err, again = pread(f)
     assert.is_nil(err)
@@ -68,13 +74,34 @@ function testcase.pread()
     assert.is_nil(again)
     assert.re_match(err, 'EBADF.+fstat')
 
-    -- test that return ENOMEM if allocation failed
-    s, err, again = pread(f, 0x1FFFFFFFFFFFFF)
-    assert.is_nil(s)
-    assert.is_nil(again)
-    assert.match(err, 'ENOMEM')
-
     -- test that throw error if file is not integer or file* object
     err = assert.throws(pread, 'not a file')
     assert.match(err, 'FILE* expected, got string')
+end
+
+function testcase.pread_eof_at_exact_file_size()
+    local f = assert(io.tmpfile())
+    f:write('hello pread world')
+    f:seek('set', 0)
+
+    -- test that return again if offset is exactly at the end of file
+    local s, err, again = pread(f, nil, 17)
+    assert.is_nil(s)
+    assert.is_nil(err)
+    assert.is_true(again)
+end
+
+function testcase.pread_fails_on_write_only_descriptor()
+    local name = os.tmpname()
+    local f = assert(io.open(name, 'w'))
+    f:write('hello pread world')
+    f:flush()
+
+    -- test that pread fails with EBADF on a write-only descriptor
+    local s, err, again = pread(f, 5, 0)
+    f:close()
+    os.remove(name)
+    assert.is_nil(s)
+    assert.is_nil(again)
+    assert.re_match(err, 'EBADF.+pread')
 end

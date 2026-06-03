@@ -106,6 +106,8 @@ static int pread_lua(lua_State *L)
     int fd = (lauxh_isint(L, 1)) ? lauxh_checkint(L, 1) : lauxh_fileno(L, 1);
     lua_Integer nbyte  = lauxh_optinteger(L, 2, -1);
     lua_Integer offset = lauxh_optinteger(L, 3, -1);
+    struct stat st     = {0};
+    off_t remain       = 0;
 
     if (nbyte == 0) {
         // ignore zero
@@ -123,22 +125,23 @@ static int pread_lua(lua_State *L)
         }
     }
 
-    if (nbyte < 0) {
-        // read all data from the current offset to the end of file if nbyte is
-        // not specified or negative value.
-        struct stat st;
-        if (fstat(fd, &st) == -1) {
-            lua_pushnil(L);
-            lua_errno_new(L, errno, "fstat");
-            return 2;
-        } else if (offset > st.st_size) {
-            // reached to EOF
-            lua_pushnil(L);
-            lua_pushnil(L);
-            lua_pushboolean(L, 1);
-            return 3;
-        }
-        nbyte = st.st_size - offset;
+    // check file size and offset
+    if (fstat(fd, &st) == -1) {
+        lua_pushnil(L);
+        lua_errno_new(L, errno, "fstat");
+        return 2;
+    } else if (offset > st.st_size) {
+        // reached to EOF
+        lua_pushnil(L);
+        lua_pushnil(L);
+        lua_pushboolean(L, 1);
+        return 3;
+    }
+    // NOTE: if nbyte is negative, it means to read until EOF. so, calculate the
+    // remaining bytes from offset to EOF and use it as nbyte.
+    remain = st.st_size - offset;
+    if (nbyte < 0 || nbyte > remain) {
+        nbyte = remain;
     }
 
     // keep the file descriptor at the top of the stack to avoid GC
